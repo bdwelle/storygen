@@ -2,8 +2,8 @@
 type: template
 id: prose
 includes:
-  - /Users/bdwelle/lib/storygen/prompts/storygrid.md
-  - /Users/bdwelle/lib/storygen/prompts/method-writing.md
+  - prompts/storygrid.md
+  - prompts/method-writing.md
 ---
 
 # Prose Generation Task
@@ -20,7 +20,7 @@ Generate complete scene prose based on the sketch blueprint above.
 
 - POV: {pov} (tight third person)
 - Follow the beat structure exactly as defined in the sketch
-- Use Method Writing as primary methodology (images, moments, sensory detail) from /Users/bdwelle/lib/storygen/prompts/method-writing.md 
+- Use Method Writing as primary methodology (images, moments, sensory detail) from prompts/method-writing.md 
 - Hit all Five Commandments from the sketch (Inciting Incident, Progressive Complication, Crisis, Climax, Resolution) 
 - Achieve the value shift: {opening_value} → {closing_value}
 - Follow narrative goals and tone defined in the context above

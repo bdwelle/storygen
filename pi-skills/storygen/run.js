@@ -374,7 +374,8 @@ if (uniqueIncludes.length > 0) {
     let resolved = false;
     const searchPaths = [
       path.join(process.cwd(), inc),              // 1. Relative to current directory (PROJECT)
-      path.isAbsolute(inc) ? inc : null           // 2. Absolute path
+      path.join(storeygenRoot, inc),              // 2. Relative to storygen root (FRAMEWORK)
+      path.isAbsolute(inc) ? inc : null           // 3. Absolute path
     ].filter(p => p !== null);
 
     for (const incPath of searchPaths) {

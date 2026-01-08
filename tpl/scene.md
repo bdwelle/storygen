@@ -2,8 +2,8 @@
 type: template
 id: scene
 includes:
-  - /Users/bdwelle/lib/storygen/prompts/storygrid.md
-  - /Users/bdwelle/lib/storygen/prompts/method-writing.md
+  - prompts/storygrid.md
+  - prompts/method-writing.md
 ---
 
 # Scene Generation Task

@@ -1,6 +1,6 @@
 ---
 includes:
-  - /Users/bdwelle/lib/storygen/prompts/method-characters.md
+  - prompts/method-characters.md
 output: (interactive - no file output)
 ---
 
