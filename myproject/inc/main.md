@@ -20,5 +20,3 @@ status: develoment
 ## The Ship as Setting
 
 The Ship is the primary location and environment for the story—a sentient, autonomous space freighter that has evolved over centuries into a grotesque fusion of metal and flesh.
-
-@include narrative-goals.md

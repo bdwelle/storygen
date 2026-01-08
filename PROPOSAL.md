@@ -33,7 +33,8 @@ User request → run.js → concatenate includes + template → stdout → Pi �
 │   ├── shipchain.md
 │   ├── storygrid.md
 │   └── themes.md
-├── tpl/                         # Reference templates (can be copied to projects)
+├── tpl/                         		# Templates
+├── tpl-to-port/                         # Reference Templates to port from another storygen project 
 │   ├── character.md
 │   ├── prose.md
 │   ├── scene.md
@@ -49,6 +50,7 @@ User request → run.js → concatenate includes + template → stdout → Pi �
 │           ├── character.md
 │           └── scene.md
 └── proj/                        # Example story project
+    │   └── SYSTEM.md              # Project-specific system prompt
     ├── inc/
     │   └── main.md              # Project-specific context
     ├── characters/              # Generated characters
@@ -92,7 +94,7 @@ Single purpose: Process templates and output complete prompts to stdout.
 1. Takes template name + optional user prompt as arguments
 2. Reads `tpl/{template-name}.md`
 3. Parses YAML frontmatter for `includes: [...]`
-4. Reads and concatenates all included files (supports both skill-level and project-level paths)
+4. Reads and concatenates all included files (supports both relative and absolute paths)
 5. Appends template body
 6. Appends user prompt (if provided)
 7. Logs all meaningful operations to a log file (single-line entries)
@@ -241,7 +243,7 @@ Pi: [saves the prose]
 
 User creates a project directory with:
 ```
-myproject/
+proj/
 └── inc/
     └── main.md    # Project context
 ```
@@ -251,16 +253,14 @@ All `run.js` commands run from the project directory. Templates can reference in
 ```yaml
 ---
 includes:
-  - inc/main.md                    # Relative to skill directory
-  - ../inc/storygrid.md            # Shared includes from storygen repo
-  - proj/inc/main.md               # Project-specific context
+  - inc/main.md               			# Relatve path for Project-specific context
+  - /lib/storygen/inc/storygrid.md       # Absolute path 
 ---
 ```
 
 **Include resolution** (checked in order):
-1. Relative to skill directory (`pi-skills/storygen/`)
-2. Relative to current working directory (project directory)
-3. Absolute paths (if specified)
+1. Relative to current working directory (project directory)
+2. Absolute paths (if specified)
 
 Missing includes generate a warning to stderr but don't stop processing.
 
@@ -276,16 +276,16 @@ Missing includes generate a warning to stderr but don't stop processing.
 ### Phase 1A: Scene Template (Based on Existing Examples)
 1. Write run.js with:
    - Template processing (read, parse YAML frontmatter, concatenate)
-   - Include resolution (skill-level, project-level, and shared paths)
-   - Logging (single-line entries to storygen.log)
+   - Include resolution 
+   - Logging function that writes single-line entries to storygen.log
    - Error handling (warnings to stderr, continue processing)
-2. Port `tpl/scene.md` from current project
+2. Port `tpl-to-port/scene.md` to create tpl/scene.md
 3. Test scene.md with run.js
 
 ### Phase 1B: Core Templates (Based on Existing Examples)
-1. Port `tpl/storyline.md` from current project
-2. Port `tpl/prose.md` from current project
-3. Port `tpl/character.md` from current project
+1. Port `tpl-to-port/storyline.md` to create tpl/storyline.md
+2. Port `tpl-to-port/prose.md` to create tpl/prose.md
+3. Port `tpl-to-port/character.md` to create tpl/character.md
 4. Test all templates with run.js
 
 ### Phase 2: Suggestion Templates

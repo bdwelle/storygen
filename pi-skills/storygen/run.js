@@ -3,6 +3,25 @@
 const fs = require('fs');
 const path = require('path');
 
+// Logging function - single-line entries to storygen.log
+function log(operation, details = {}) {
+  const timestamp = new Date().toISOString();
+  const detailsStr = Object.entries(details)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' ');
+  const logLine = `${timestamp} ${operation} ${detailsStr}\n`;
+  
+  const logPath = path.join(process.cwd(), 'storygen.log');
+  fs.appendFileSync(logPath, logLine);
+}
+
+// Error handling - warnings to stderr
+function warn(message) {
+  console.error(`Warning: ${message}`);
+  log('warning', { message });
+}
+
+// Parse command line arguments
 const args = process.argv.slice(2);
 if (args.length < 1) {
   console.error('Usage: run.js <template-name> [user-prompt]');
@@ -12,44 +31,99 @@ if (args.length < 1) {
 const templateName = args[0];
 const userPrompt = args.slice(1).join(' ');
 const baseDir = __dirname;
+
+log('run', { 
+  template: templateName, 
+  user_prompt: userPrompt ? `"${userPrompt}"` : 'none'
+});
+
+// Read template file
 const templatePath = path.join(baseDir, 'tpl', `${templateName}.md`);
+if (!fs.existsSync(templatePath)) {
+  warn(`Template not found: ${templatePath}`);
+  log('error', { type: 'template_not_found', path: templatePath });
+  process.exit(1);
+}
 
 const templateContent = fs.readFileSync(templatePath, 'utf8');
+log('template', { file: templatePath, status: 'ok' });
 
 // Parse YAML frontmatter
 const match = templateContent.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
 if (!match) {
+  // No frontmatter - just output template
   console.log(templateContent);
+  if (userPrompt) {
+    console.log(`\n\nUser request: ${userPrompt}\n`);
+  }
+  log('output', { bytes: templateContent.length });
   process.exit(0);
 }
 
 const [, frontmatterText, templateBody] = match;
-const frontmatter = {};
 
-// Simple YAML parser for includes only
-frontmatterText.split('\n').forEach(line => {
-  const includeMatch = line.match(/^\s*-\s+(.+)$/);
-  if (includeMatch) {
-    frontmatter.includes = frontmatter.includes || [];
-    frontmatter.includes.push(includeMatch[1]);
+// Parse includes from frontmatter
+const includes = [];
+const lines = frontmatterText.split('\n');
+let inIncludesSection = false;
+
+for (const line of lines) {
+  if (line.match(/^includes:/)) {
+    inIncludesSection = true;
+    continue;
   }
-});
-
-// Process includes
-let output = '';
-if (frontmatter.includes) {
-  for (const inc of frontmatter.includes) {
-    const incPath = path.join(baseDir, inc);
-    if (fs.existsSync(incPath)) {
-      output += fs.readFileSync(incPath, 'utf8') + '\n\n';
+  if (inIncludesSection) {
+    const includeMatch = line.match(/^\s*-\s+(.+)$/);
+    if (includeMatch) {
+      includes.push(includeMatch[1].trim());
+    } else if (line.match(/^\S/)) {
+      // New top-level key, stop parsing includes
+      break;
     }
   }
 }
 
-// Add template body and user prompt
-output += templateBody;
-if (userPrompt) {
-  output += `\n\nUser request: ${userPrompt}\n`;
+// Process includes with multi-path resolution
+let output = '';
+if (includes.length > 0) {
+  for (const inc of includes) {
+    let resolved = false;
+    const searchPaths = [
+      path.join(baseDir, inc),                    // Relative to skill directory
+      path.join(process.cwd(), inc),              // Relative to current directory
+      path.isAbsolute(inc) ? inc : null           // Absolute path
+    ].filter(p => p !== null);
+
+    for (const incPath of searchPaths) {
+      if (fs.existsSync(incPath)) {
+        try {
+          const content = fs.readFileSync(incPath, 'utf8');
+          output += content + '\n\n';
+          log('include', { file: inc, resolved: incPath, status: 'ok' });
+          resolved = true;
+          break;
+        } catch (err) {
+          warn(`Error reading include ${incPath}: ${err.message}`);
+          log('include', { file: inc, resolved: incPath, status: 'error', error: err.message });
+        }
+      }
+    }
+
+    if (!resolved) {
+      warn(`Include file not found: ${inc}`);
+      log('include', { file: inc, status: 'missing' });
+    }
+  }
 }
 
+// Add template body
+output += templateBody;
+
+// Add user prompt if provided
+if (userPrompt) {
+  output += `\n\n## User Request\n\n${userPrompt}\n`;
+}
+
+// Output to stdout
 console.log(output);
+log('output', { bytes: output.length });

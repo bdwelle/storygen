@@ -1,5 +1,5 @@
 ---
-name: storygen-poc
+name: storygen
 description: Simple story generation assistant for fiction writing. Use for creating characters, scenes, storylines, and prose. Trigger words: character, scene, storyline, story, prose, fiction, writing.
 ---
 

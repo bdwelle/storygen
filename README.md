@@ -18,6 +18,7 @@ Storygen uses markdown templates with embedded instructions to generate characte
    mkdir myproject
    cd myproject
    mkdir -p inc characters scenes storylines prose
+   cp /path/to/storygen/proj/SYSTEM.md .
    cp /path/to/storygen/proj/inc/main.md inc/
    ```
 
@@ -39,7 +40,7 @@ Storygen uses markdown templates with embedded instructions to generate characte
 ```
 storygen/
 ├── inc/              # Shared context files (Story Grid, writing methods)
-├── tpl/              # Reference templates
+├── tpl/              # Templates
 ├── pi-skills/
 │   └── storygen/     # Pi skill implementation
 ├── proj/             # Example project
