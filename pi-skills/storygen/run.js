@@ -23,6 +23,12 @@ function warn(message) {
 
 // Parse command line arguments
 const args = process.argv.slice(2);
+
+// Log the original command line arguments
+log('argv', { 
+  args: JSON.stringify(process.argv.slice(2))
+});
+
 if (args.length < 1) {
   console.error('Usage: run.js <template-name> [user-prompt]');
   process.exit(1);
