@@ -74,7 +74,7 @@ modified: {today's date}
 - [Trait 3 - specific and observable]
 
 ## Speech
-[Character idiolect, speech patterns, accent, slang. Include examples.]
+[How does this character talk? Character idiolect, speech patterns, accent, slang. Include examples.]
 
 ## Backstory
 [Character history and formative experiences that shaped who they are now. Include specific events, relationships, and turning points.]

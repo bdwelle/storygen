@@ -43,7 +43,8 @@ This generates 8-10 personalized questions about voice, transformation lines, an
 
 **Step 2: Have Conversation**
 - Present the questions to the user
-- Have a natural conversation gathering their answers
+- **Important:** User should answer IN CHARACTER, as if they ARE the character
+- Have a natural conversation gathering their answers (in character's voice)
 - Keep the full conversation in context
 
 **Step 3: Generate Final Character**
