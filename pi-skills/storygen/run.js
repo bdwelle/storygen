@@ -133,16 +133,15 @@ function scanDirectory(dir, index, prefix, options = {}) {
   return files.length;
 }
 
-// Build unified entity index from inc/ and characters/ directories
+// Build unified entity index from codex/ and characters/ directories
 function buildConceptIndex(projectDir) {
-  const index = {}; // { "steg": "inc/steg.md", "maya": "characters/maya-chen.md", ... }
+  const index = {}; // { "steg": "codex/steg.md", "maya": "characters/maya-chen.md", ... }
   
-  // Scan inc/ for concepts
+  // Scan codex/ for concepts
   const conceptCount = scanDirectory(
-    path.join(projectDir, 'inc'), 
+    path.join(projectDir, 'codex'), 
     index, 
-    'inc', 
-    { excludeMain: true }
+    'codex'
   );
   
   // Scan characters/ for character files
@@ -304,15 +303,15 @@ const [, frontmatterText, templateBody] = match;
 // INCLUDES (context)
 
 // Auto-include project context first (from current working directory)
-const projectMainPath = path.join(process.cwd(), 'inc/main.md');
+const projectMainPath = path.join(process.cwd(), 'prompts/main.md');
 const includes = [];
 
 // Check if project main.md exists - REQUIRED
 if (!fs.existsSync(projectMainPath)) {
   console.error(`Error: Project context not found: ${projectMainPath}`);
   console.error('');
-  console.error('You must have inc/main.md in your project directory.');
-  console.error('Run from your project directory with an inc/main.md file.');
+  console.error('You must have prompts/main.md in your project directory.');
+  console.error('Run from your project directory with a prompts/main.md file.');
   log('error', { type: 'project_context_required', path: projectMainPath });
   process.exit(1);
 }
@@ -329,7 +328,7 @@ if (projectMainMatch) {
 }
 
 // Then add project main.md itself
-includes.push('inc/main.md');
+includes.push('prompts/main.md');
 
 // Build entity index (concepts + characters) and find matching files from user prompt
 const conceptIndex = buildConceptIndex(process.cwd());
