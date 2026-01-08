@@ -85,44 +85,78 @@ function parseFrontmatter(content) {
   return frontmatter;
 }
 
-// Build concept index from inc/ directory
-function buildConceptIndex(incDir) {
-  const index = {}; // { "steg": "inc/steg.md", "execon": "inc/steg.md", ... }
-  
-  if (!fs.existsSync(incDir)) {
-    log('concept_index', { status: 'no_inc_dir' });
-    return index;
+// Helper: Scan a directory and add files to the index
+function scanDirectory(dir, index, prefix, options = {}) {
+  if (!fs.existsSync(dir)) {
+    log('scan_directory', { dir: prefix, status: 'not_found' });
+    return 0;
   }
   
-  const files = fs.readdirSync(incDir).filter(f => f.endsWith('.md') && f !== 'main.md');
+  let files = fs.readdirSync(dir).filter(f => f.endsWith('.md'));
+  
+  // Exclude main.md from inc/ directory
+  if (options.excludeMain) {
+    files = files.filter(f => f !== 'main.md');
+  }
   
   for (const file of files) {
-    const filePath = path.join(incDir, file);
+    const filePath = path.join(dir, file);
     const basename = file.replace(/\.md$/, '');
-    const relPath = `inc/${file}`;
+    const relPath = `${prefix}/${file}`;
     
     // Add filename as primary key
     index[basename] = relPath;
     
-    // Parse frontmatter for aliases
+    // Parse frontmatter for aliases and name field
     try {
       const content = fs.readFileSync(filePath, 'utf8');
       const frontmatter = parseFrontmatter(content);
       
+      // Add aliases
       if (frontmatter.aliases && Array.isArray(frontmatter.aliases)) {
         for (const alias of frontmatter.aliases) {
-          index[alias] = relPath;
+          index[alias.toLowerCase()] = relPath;
         }
       }
+      
+      // Add 'name' field for characters (normalized: "Maya Chen" -> "maya-chen")
+      if (frontmatter.name) {
+        const nameLower = frontmatter.name.toLowerCase().replace(/\s+/g, '-');
+        index[nameLower] = relPath;
+      }
     } catch (err) {
-      warn(`Error parsing frontmatter in ${file}: ${err.message}`);
+      warn(`Error parsing ${file}: ${err.message}`);
     }
   }
   
-  log('concept_index', { 
-    status: 'built', 
-    files: files.length, 
-    entries: Object.keys(index).length 
+  log('scan_directory', { dir: prefix, status: 'ok', files: files.length });
+  return files.length;
+}
+
+// Build unified entity index from inc/ and characters/ directories
+function buildConceptIndex(projectDir) {
+  const index = {}; // { "steg": "inc/steg.md", "maya": "characters/maya-chen.md", ... }
+  
+  // Scan inc/ for concepts
+  const conceptCount = scanDirectory(
+    path.join(projectDir, 'inc'), 
+    index, 
+    'inc', 
+    { excludeMain: true }
+  );
+  
+  // Scan characters/ for character files
+  const characterCount = scanDirectory(
+    path.join(projectDir, 'characters'), 
+    index, 
+    'characters'
+  );
+  
+  log('entity_index', { 
+    status: 'built',
+    concepts: conceptCount,
+    characters: characterCount,
+    total_entries: Object.keys(index).length 
   });
   
   return index;
@@ -167,7 +201,7 @@ function findConceptFiles(prompt, conceptIndex) {
   return Array.from(matchedFiles);
 }
 
-// Load related concepts from a concept file's frontmatter
+// Load related entities (concepts + characters) from a file's frontmatter
 function loadRelatedConcepts(conceptFile, conceptIndex, projectDir) {
   const relatedFiles = [];
   const filePath = path.join(projectDir, conceptFile);
@@ -178,23 +212,32 @@ function loadRelatedConcepts(conceptFile, conceptIndex, projectDir) {
     const content = fs.readFileSync(filePath, 'utf8');
     const frontmatter = parseFrontmatter(content);
     
+    // Load related_concepts
     if (frontmatter.related_concepts && Array.isArray(frontmatter.related_concepts)) {
       for (const concept of frontmatter.related_concepts) {
-        // Look up concept in index
         if (conceptIndex[concept]) {
           relatedFiles.push(conceptIndex[concept]);
         }
       }
-      
-      if (relatedFiles.length > 0) {
-        log('related_concepts', {
-          from: conceptFile,
-          loaded: JSON.stringify(relatedFiles)
-        });
+    }
+    
+    // Load related_characters
+    if (frontmatter.related_characters && Array.isArray(frontmatter.related_characters)) {
+      for (const character of frontmatter.related_characters) {
+        if (conceptIndex[character]) {
+          relatedFiles.push(conceptIndex[character]);
+        }
       }
     }
+    
+    if (relatedFiles.length > 0) {
+      log('related_entities', {
+        from: conceptFile,
+        loaded: JSON.stringify(relatedFiles)
+      });
+    }
   } catch (err) {
-    warn(`Error loading related concepts from ${conceptFile}: ${err.message}`);
+    warn(`Error loading related entities from ${conceptFile}: ${err.message}`);
   }
   
   return relatedFiles;
@@ -288,9 +331,8 @@ if (projectMainMatch) {
 // Then add project main.md itself
 includes.push('inc/main.md');
 
-// Build concept index and find matching concept files from user prompt
-const incDir = path.join(process.cwd(), 'inc');
-const conceptIndex = buildConceptIndex(incDir);
+// Build entity index (concepts + characters) and find matching files from user prompt
+const conceptIndex = buildConceptIndex(process.cwd());
 const conceptFiles = findConceptFiles(userPrompt, conceptIndex);
 
 // Load related concepts from matched concept files

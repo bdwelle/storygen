@@ -19,28 +19,41 @@ When the user requests story generation:
 4. Take that output and send it to the LLM to generate the content
 5. Save the generated content if the user requests it
 
-### Automatic Concept Matching
+### Automatic Entity Matching (Concepts + Characters)
 
-The system automatically detects and loads concept-specific context files based on words in the user's prompt.
+The system automatically detects and loads context files based on words in the user's prompt:
+- **Concepts** from `inc/` directory (technology, world-building, themes)
+- **Characters** from `characters/` directory (character definitions, relationships)
 
 **How it works:**
 - User mentions "shipchain" → system loads `inc/shipchain.md`
+- User mentions "Maya" → system loads `characters/maya-chen.md`
+- User mentions "Celeste" → system loads `characters/celeste-voss.md` + related characters
 - User mentions "executable-contracts" → system loads `inc/steg.md` (via alias)
-- User mentions "steg" → system loads `inc/steg.md` + related concepts
 
 **Features:**
-- **Alias matching:** Concept files can have multiple aliases in frontmatter
-- **Related concepts:** Automatically loads related concept files
+- **Alias matching:** Both concepts and characters can have multiple aliases
+- **Related entities:** Automatically loads `related_concepts` and `related_characters`
 - **Deduplication:** Same file never loaded twice
-- **Logged:** All concept matches logged to `storygen.log`
+- **Logged:** All matches logged to `storygen.log`
 
-**Example:**
+**Examples:**
+
+*Characters only:*
 ```bash
-{baseDir}/run.js scene "scene about shipchain and steg"
+{baseDir}/run.js scene "Celeste oversees Maya stretching session"
 ```
-This automatically includes `inc/shipchain.md` and `inc/steg.md` in the context.
+→ Loads `characters/celeste-voss.md` + `characters/maya-chen.md`
 
-**Concept File Format:**
+*Mix of characters and concepts:*
+```bash
+{baseDir}/run.js scene "Maya signs an execon while wearing a shipchain"
+```
+→ Loads `characters/maya-chen.md` + `inc/steg.md` + `inc/shipchain.md` + related concepts
+
+**Entity File Format:**
+
+*Concept file (inc/):*
 ```yaml
 ---
 title: "Concept Name"
@@ -50,10 +63,23 @@ aliases:
   - another-name
 related_concepts:
   - other-concept
-  - linked-concept
 ---
+# Concept content...
+```
 
-# Concept content here...
+*Character file (characters/):*
+```yaml
+---
+type: character
+name: Maya Chen
+aliases:
+  - maya
+related_characters:
+  - celeste
+related_concepts:
+  - gymnast
+---
+# Character content...
 ```
 
 ## Available Templates
@@ -248,10 +274,12 @@ You:
 
 ## Notes
 
-- **Project Context Required:** `run.js` requires `inc/main.md` in the current working directory. This file contains project-specific context (characters, world, tone, etc.). Processing will fail with an error if not found.
+- **Project Context Required:** `run.js` requires `inc/main.md` in the current working directory. This file contains project-specific context (world, tone, etc.). Processing will fail with an error if not found.
 - **Concept Files:** Place domain-specific concept files in your project's `inc/` directory with frontmatter including `aliases` and `related_concepts` for automatic loading
-- **Concept Matching:** Single words from user prompts are matched against concept filenames and aliases (case-insensitive, exact match)
+- **Character Files:** Place character definitions in your project's `characters/` directory with frontmatter including `aliases`, `related_characters`, and `related_concepts`
+- **Entity Matching:** Single words from user prompts are matched against entity filenames and aliases (case-insensitive, exact match)
+- **Relationship Loading:** When a character/concept is matched, its `related_characters` and `related_concepts` are automatically loaded
 - Templates also include story methodology files (Storygrid, Method Writing, etc.) from their frontmatter
-- The `run.js` script logs all operations to `storygen.log` in the current directory, including concept matching details
+- The `run.js` script logs all operations to `storygen.log` in the current directory, including entity matching details
 - Missing include files (other than inc/main.md) generate warnings but don't stop processing
 - User must be in their project directory when running commands
