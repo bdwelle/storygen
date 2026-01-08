@@ -46,6 +46,160 @@ function parseIncludesFromFrontmatter(frontmatterText) {
   return includes;
 }
 
+// Parse full frontmatter into object
+function parseFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return {};
+  
+  const frontmatter = {};
+  const lines = match[1].split('\n');
+  let currentKey = null;
+  let currentArray = null;
+  
+  for (const line of lines) {
+    // Array item
+    const arrayMatch = line.match(/^\s*-\s+(.+)$/);
+    if (arrayMatch && currentArray) {
+      currentArray.push(arrayMatch[1].trim());
+      continue;
+    }
+    
+    // Key-value pair
+    const kvMatch = line.match(/^([a-z_]+):\s*(.*)$/i);
+    if (kvMatch) {
+      const [, key, value] = kvMatch;
+      currentKey = key;
+      
+      if (value === '') {
+        // Array starts on next line
+        currentArray = [];
+        frontmatter[key] = currentArray;
+      } else {
+        // Simple value
+        frontmatter[key] = value.trim();
+        currentArray = null;
+      }
+    }
+  }
+  
+  return frontmatter;
+}
+
+// Build concept index from inc/ directory
+function buildConceptIndex(incDir) {
+  const index = {}; // { "steg": "inc/steg.md", "execon": "inc/steg.md", ... }
+  
+  if (!fs.existsSync(incDir)) {
+    log('concept_index', { status: 'no_inc_dir' });
+    return index;
+  }
+  
+  const files = fs.readdirSync(incDir).filter(f => f.endsWith('.md') && f !== 'main.md');
+  
+  for (const file of files) {
+    const filePath = path.join(incDir, file);
+    const basename = file.replace(/\.md$/, '');
+    const relPath = `inc/${file}`;
+    
+    // Add filename as primary key
+    index[basename] = relPath;
+    
+    // Parse frontmatter for aliases
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const frontmatter = parseFrontmatter(content);
+      
+      if (frontmatter.aliases && Array.isArray(frontmatter.aliases)) {
+        for (const alias of frontmatter.aliases) {
+          index[alias] = relPath;
+        }
+      }
+    } catch (err) {
+      warn(`Error parsing frontmatter in ${file}: ${err.message}`);
+    }
+  }
+  
+  log('concept_index', { 
+    status: 'built', 
+    files: files.length, 
+    entries: Object.keys(index).length 
+  });
+  
+  return index;
+}
+
+// Extract concept tokens from user prompt
+function extractConceptTokens(prompt) {
+  if (!prompt) return [];
+  
+  // Split on whitespace, punctuation, but keep hyphens/underscores
+  const tokens = prompt
+    .toLowerCase()
+    .split(/[\s,.()?!;:"]+/)
+    .filter(t => t.length > 0);
+  
+  return tokens;
+}
+
+// Find concept files matching user prompt
+function findConceptFiles(prompt, conceptIndex) {
+  const tokens = extractConceptTokens(prompt);
+  const matchedFiles = new Set();
+  
+  log('concept_extraction', { 
+    tokens: JSON.stringify(tokens),
+    source: 'user_prompt'
+  });
+  
+  for (const token of tokens) {
+    if (conceptIndex[token]) {
+      matchedFiles.add(conceptIndex[token]);
+    }
+  }
+  
+  if (matchedFiles.size > 0) {
+    log('concept_matching', { 
+      matches: JSON.stringify(Array.from(matchedFiles)),
+      status: 'ok'
+    });
+  }
+  
+  return Array.from(matchedFiles);
+}
+
+// Load related concepts from a concept file's frontmatter
+function loadRelatedConcepts(conceptFile, conceptIndex, projectDir) {
+  const relatedFiles = [];
+  const filePath = path.join(projectDir, conceptFile);
+  
+  if (!fs.existsSync(filePath)) return relatedFiles;
+  
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const frontmatter = parseFrontmatter(content);
+    
+    if (frontmatter.related_concepts && Array.isArray(frontmatter.related_concepts)) {
+      for (const concept of frontmatter.related_concepts) {
+        // Look up concept in index
+        if (conceptIndex[concept]) {
+          relatedFiles.push(conceptIndex[concept]);
+        }
+      }
+      
+      if (relatedFiles.length > 0) {
+        log('related_concepts', {
+          from: conceptFile,
+          loaded: JSON.stringify(relatedFiles)
+        });
+      }
+    }
+  } catch (err) {
+    warn(`Error loading related concepts from ${conceptFile}: ${err.message}`);
+  }
+  
+  return relatedFiles;
+}
+
 ////////////////////////////////
 // MAIN 
 
@@ -76,7 +230,7 @@ log('run', {
 });
 
 ////////////////
-// TEMPLATE
+// TEMPLATES
 
 // Read template file from root tpl/ directory
 const templatePath = path.join(storeygenRoot, 'tpl', `${templateName}.md`);
@@ -134,15 +288,48 @@ if (projectMainMatch) {
 // Then add project main.md itself
 includes.push('inc/main.md');
 
+// Build concept index and find matching concept files from user prompt
+const incDir = path.join(process.cwd(), 'inc');
+const conceptIndex = buildConceptIndex(incDir);
+const conceptFiles = findConceptFiles(userPrompt, conceptIndex);
+
+// Load related concepts from matched concept files
+const relatedConceptFiles = [];
+for (const conceptFile of conceptFiles) {
+  const related = loadRelatedConcepts(conceptFile, conceptIndex, process.cwd());
+  relatedConceptFiles.push(...related);
+}
+
+// Combine concept files + related, deduplicate
+const allConceptFiles = [...new Set([...conceptFiles, ...relatedConceptFiles])];
+
+// Insert concept files after project main, before template includes
+includes.push(...allConceptFiles);
+
 // Parse additional includes from template frontmatter
 const templateIncludes = parseIncludesFromFrontmatter(frontmatterText);
 includes.push(...templateIncludes);
 
+// Final deduplication - preserve order, remove duplicates
+const uniqueIncludes = [];
+const seen = new Set();
+for (const inc of includes) {
+  if (!seen.has(inc)) {
+    uniqueIncludes.push(inc);
+    seen.add(inc);
+  }
+}
+
+log('includes_final', {
+  total: uniqueIncludes.length,
+  files: JSON.stringify(uniqueIncludes)
+});
+
 // Process includes with multi-path resolution
 let output = '';
 
-if (includes.length > 0) {
-  for (const inc of includes) {
+if (uniqueIncludes.length > 0) {
+  for (const inc of uniqueIncludes) {
     let resolved = false;
     const searchPaths = [
       path.join(process.cwd(), inc),              // 1. Relative to current directory (PROJECT)

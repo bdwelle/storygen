@@ -11,9 +11,50 @@ Story generation system using templates with embedded instructions for fiction w
 
 When the user requests story generation:
 1. Run the appropriate template using `run.js`
-2. The script outputs a complete prompt (includes + template + user request) to stdout
-3. Take that output and send it to the LLM to generate the content
-4. Save the generated content if the user requests it
+2. The script automatically loads relevant context:
+   - Project context from `inc/main.md`
+   - **Concept-specific knowledge** from user's prompt (see Concept Matching below)
+   - Template-specific includes (methodology, etc.)
+3. The script outputs a complete prompt (includes + template + user request) to stdout
+4. Take that output and send it to the LLM to generate the content
+5. Save the generated content if the user requests it
+
+### Automatic Concept Matching
+
+The system automatically detects and loads concept-specific context files based on words in the user's prompt.
+
+**How it works:**
+- User mentions "shipchain" → system loads `inc/shipchain.md`
+- User mentions "executable-contracts" → system loads `inc/steg.md` (via alias)
+- User mentions "steg" → system loads `inc/steg.md` + related concepts
+
+**Features:**
+- **Alias matching:** Concept files can have multiple aliases in frontmatter
+- **Related concepts:** Automatically loads related concept files
+- **Deduplication:** Same file never loaded twice
+- **Logged:** All concept matches logged to `storygen.log`
+
+**Example:**
+```bash
+{baseDir}/run.js scene "scene about shipchain and steg"
+```
+This automatically includes `inc/shipchain.md` and `inc/steg.md` in the context.
+
+**Concept File Format:**
+```yaml
+---
+title: "Concept Name"
+type: technology
+aliases:
+  - alternative-name
+  - another-name
+related_concepts:
+  - other-concept
+  - linked-concept
+---
+
+# Concept content here...
+```
 
 ## Available Templates
 
@@ -208,7 +249,9 @@ You:
 ## Notes
 
 - **Project Context Required:** `run.js` requires `inc/main.md` in the current working directory. This file contains project-specific context (characters, world, tone, etc.). Processing will fail with an error if not found.
+- **Concept Files:** Place domain-specific concept files in your project's `inc/` directory with frontmatter including `aliases` and `related_concepts` for automatic loading
+- **Concept Matching:** Single words from user prompts are matched against concept filenames and aliases (case-insensitive, exact match)
 - Templates also include story methodology files (Storygrid, Method Writing, etc.) from their frontmatter
-- The `run.js` script logs all operations to `storygen.log` in the current directory
+- The `run.js` script logs all operations to `storygen.log` in the current directory, including concept matching details
 - Missing include files (other than inc/main.md) generate warnings but don't stop processing
 - User must be in their project directory when running commands
