@@ -420,4 +420,4 @@ console.log(output);
 log('output', { bytes: output.length });
 
 // Log END of execution
-log("END storygen skill\n");
+log("END storygen skill\n======================================================================\n");
