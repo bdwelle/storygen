@@ -100,6 +100,9 @@ modified: {today's date}
 
 ## Prose Generation Notes
 
+These are notes included here for eventual, subsequent prose generation. 
+DO NOT generate full prose now. 
+
 **Word Count:** [suggested length of scene words of prose]
 
 **POV:** [POV approach and voice tracking]

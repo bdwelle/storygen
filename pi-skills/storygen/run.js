@@ -31,14 +31,15 @@ if (args.length < 1) {
 const templateName = args[0];
 const userPrompt = args.slice(1).join(' ');
 const baseDir = __dirname;
+const storeygenRoot = path.join(baseDir, '../..');  // Go up to storygen root
 
 log('run', { 
   template: templateName, 
   user_prompt: userPrompt ? `"${userPrompt}"` : 'none'
 });
 
-// Read template file
-const templatePath = path.join(baseDir, 'tpl', `${templateName}.md`);
+// Read template file from root tpl/ directory
+const templatePath = path.join(storeygenRoot, 'tpl', `${templateName}.md`);
 if (!fs.existsSync(templatePath)) {
   warn(`Template not found: ${templatePath}`);
   log('error', { type: 'template_not_found', path: templatePath });
